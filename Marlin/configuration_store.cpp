@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V56"
+#define EEPROM_VERSION "V55"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -50,7 +50,7 @@
 #include "endstops.h"
 #include "planner.h"
 #include "temperature.h"
-#include "ultralcd.h"
+#include "chiron_lcd.h"
 #include "stepper.h"
 #include "parser.h"
 #include "vector_3.h"
@@ -1186,6 +1186,13 @@ void MarlinSettings::postprocess() {
           if (!validating) set_bed_leveling_enabled(false);
           EEPROM_READ(bilinear_grid_spacing);        // 2 ints
           EEPROM_READ(bilinear_start);               // 2 ints
+
+		  #if ENABLED(CHIRON_LCD)
+			  // Add for Anycubic Chiron LCD
+			  z_values_index = eeprom_index;
+			  z_values_size = sizeof(z_values);
+		  #endif
+		  
           EEPROM_READ(z_values);                     // 9 to 256 floats
         }
         else // EEPROM data is stale

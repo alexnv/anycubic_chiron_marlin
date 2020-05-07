@@ -82,7 +82,7 @@
 #include "endstops.h"
 #include "planner.h"
 #include "temperature.h"
-#include "ultralcd.h"
+#include "chiron_lcd.h"
 #include "language.h"
 #include "cardreader.h"
 #include "speed_lookuptable.h"

@@ -257,7 +257,7 @@
 
 #include "Marlin.h"
 
-#include "ultralcd.h"
+#include "chiron_lcd.h"
 #include "planner.h"
 #include "stepper.h"
 #include "endstops.h"
@@ -294,7 +294,7 @@
   #include "fwretract.h"
 #endif
 
-#if ENABLED(POWER_LOSS_RECOVERY)
+#if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
   #include "power_loss_recovery.h"
 #endif
 
@@ -375,6 +375,10 @@
 #endif
 
 bool Running = true;
+
+#if ENABLED(CHIRON_LCD)
+	char errorFlag=0;
+#endif
 
 uint8_t marlin_debug_flags = DEBUG_NONE;
 
@@ -1213,6 +1217,9 @@ inline void get_serial_commands() {
         else if (n == -1) {
           SERIAL_ERROR_START();
           SERIAL_ECHOLNPGM(MSG_SD_ERR_READ);
+          #if ENABLED(CHIRON_LCD)
+	    errorFlag=6;
+          #endif
         }
         if (sd_char == '#') stop_buffering = true;
 
@@ -1239,7 +1246,7 @@ inline void get_serial_commands() {
     }
   }
 
-  #if ENABLED(POWER_LOSS_RECOVERY)
+  #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
 
     inline bool drain_job_recovery_commands() {
       static uint8_t job_recovery_commands_index = 0; // Resets on reboot
@@ -1271,7 +1278,7 @@ void get_available_commands() {
 
   get_serial_commands();
 
-  #if ENABLED(POWER_LOSS_RECOVERY)
+  #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
     // Commands for power-loss recovery take precedence
     if (job_recovery_phase == JOB_RECOVERY_YES && drain_job_recovery_commands()) return;
   #endif
@@ -4608,7 +4615,11 @@ inline void gcode_G28(const bool always_home_all) {
   #if ENABLED(RESTORE_LEVELING_AFTER_G28)
     set_bed_leveling_enabled(leveling_was_active);
   #endif
-
+  
+  #if ENABLED(CHIRON_LCD)
+	set_bed_leveling_enabled(true);
+  #endif
+  
   clean_up_after_endstop_or_probe_move();
 
   // Restore the active tool after homing
@@ -5585,6 +5596,13 @@ void home_all_axes() { gcode_G28(true); }
         if (!dryrun) extrapolate_unprobed_bed_level();
         print_bilinear_leveling_grid();
 
+		#if ENABLED(CHIRON_LCD)
+			write_to_lcd_P(PSTR("J25\r\n")); // auto leveling DONE
+			settings.save();
+			disable_X(); 
+			disable_Y();
+			disable_Z();         
+		#endif
         refresh_bed_level();
 
         #if ENABLED(ABL_BILINEAR_SUBDIVISION)
@@ -7602,7 +7620,7 @@ inline void gcode_M17() {
    * M23: Open a file
    */
   inline void gcode_M23() {
-    #if ENABLED(POWER_LOSS_RECOVERY)
+    #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
       card.removeJobRecoveryFile();
     #endif
     // Simplify3D includes the size, so zero out all spaces (#7227)
@@ -7618,13 +7636,13 @@ inline void gcode_M17() {
       resume_print();
     #endif
 
-    #if ENABLED(POWER_LOSS_RECOVERY)
+    #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
       if (parser.seenval('S')) card.setIndex(parser.value_long());
     #endif
 
     card.startFileprint();
 
-    #if ENABLED(POWER_LOSS_RECOVERY)
+    #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
       if (parser.seenval('T'))
         print_job_timer.resume(parser.value_long());
       else
@@ -8527,7 +8545,13 @@ inline void gcode_M105() {
           return;
         }
       #endif // EXTRA_FAN_SPEED
+      
+	  #if ENABLED(CHIRON_LCD)
+		uint16_t s = parser.ushortval('S', 179);
+		NOMORE(s, Max_ModelCooling);
+	  #else
       const uint16_t s = parser.ushortval('S', 255);
+	  #endif  
       fanSpeeds[p] = MIN(s, 255U);
     }
   }
@@ -8621,6 +8645,10 @@ inline void gcode_M109() {
           lcd_setstatusPGM(heating ? PSTR("E " MSG_HEATING) : PSTR("E " MSG_COOLING));
         #endif
     #endif
+    
+    #if ENABLED(CHIRON_LCD)
+        write_to_lcd_P(PSTR("J06\r\n")); //heating
+    #endif    
   }
 
   #if ENABLED(AUTOTEMP)
@@ -8731,7 +8759,18 @@ inline void gcode_M109() {
       leds.set_white();
     #endif
   }
-
+  
+  
+  #if ENABLED(CHIRON_LCD)
+	write_to_lcd_P(PSTR("J07\r\n")); 		//hotend heating done
+	if(card.sdprinting) {
+		write_to_lcd_P(PSTR("J04\r\n")); 	//printing from sd card
+	}
+	else if(USBConnectFlag) {
+		write_to_lcd_P(PSTR("J03\r\n")); 	//usb connectting
+	}		
+  #endif     
+  
   #if DISABLED(BUSY_WHILE_HEATING)
     KEEPALIVE_STATE(IN_HANDLER);
   #endif
@@ -8760,6 +8799,10 @@ inline void gcode_M109() {
    */
   inline void gcode_M190() {
     if (DEBUGGING(DRYRUN)) return;
+
+    #if ENABLED(CHIRON_LCD)
+	write_to_lcd_P(PSTR("J08\r\n")); //hotbed heating
+    #endif
 
     const bool no_wait_for_cooling = parser.seenval('S');
     if (no_wait_for_cooling || parser.seenval('R')) {
@@ -8871,7 +8914,12 @@ inline void gcode_M109() {
 
     } while (wait_for_heatup && TEMP_BED_CONDITIONS);
 
-    if (wait_for_heatup) lcd_reset_status();
+    if (wait_for_heatup) {
+      #if ENABLED(CHIRON_LCD)
+		write_to_lcd_P(PSTR("J09\r\n")); //hotbed heating
+      #endif
+      lcd_reset_status();
+    }
     #if DISABLED(BUSY_WHILE_HEATING)
       KEEPALIVE_STATE(IN_HANDLER);
     #endif
@@ -10231,13 +10279,31 @@ inline void gcode_M226() {
    * M300: Play beep sound S<frequency Hz> P<duration ms>
    */
   inline void gcode_M300() {
+
+    uint16_t const frequency = parser.ushortval('S', 110);
+    uint16_t duration = parser.ushortval('P', 1000);
+    if (frequency > 0) {
+       #if BEEPER_PIN > 0
+          tone(BEEPER_PIN, frequency);
+          delay(duration);
+          noTone(BEEPER_PIN);
+       #elif defined(ULTRALCD)
+       lcd_buzz(frequency, duration);
+       #elif defined(LCD_USE_I2C_BUZZER)
+       lcd_buzz(duration, frequency);
+       #endif
+    } else {
+        delay(duration);
+    }
+/*
     uint16_t const frequency = parser.ushortval('S', 260);
     uint16_t duration = parser.ushortval('P', 1000);
-
+    
     // Limits the tone duration to 0-5 seconds.
     NOMORE(duration, 5000);
 
     BUZZ(duration, frequency);
+*/
   }
 
 #endif // HAS_BUZZER
@@ -11036,8 +11102,16 @@ inline void gcode_M502() {
   inline void gcode_M851() {
     if (parser.seenval('Z')) {
       const float value = parser.value_linear_units();
-      if (WITHIN(value, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
+
+      if (WITHIN(value, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
+        float height_difference =(value - zprobe_zoffset);
+        
+        for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
+          for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++)
+            z_values[x][y] += height_difference;
         zprobe_zoffset = value;
+        refresh_bed_level();
+      }
       else {
         SERIAL_ERROR_START();
         SERIAL_ERRORLNPGM("?Z out of range (" STRINGIFY(Z_PROBE_OFFSET_RANGE_MIN) " to " STRINGIFY(Z_PROBE_OFFSET_RANGE_MAX) ")");
@@ -15170,6 +15244,10 @@ void kill(const char* lcd_msg) {
 
   suicide();
   while (1) {
+   #if ENABLED(CHIRON_LCD)
+      errorFlag=6;
+      lcd_update();
+    #endif
     #if ENABLED(USE_WATCHDOG)
       watchdog_reset();
     #endif
@@ -15260,7 +15338,8 @@ void setup() {
   if (mcu & 32) SERIAL_ECHOLNPGM(MSG_SOFTWARE_RESET);
   MCUSR = 0;
 
-  SERIAL_ECHOPGM(MSG_MARLIN);
+  //SERIAL_ECHOPGM(MSG_MARLIN);
+  SERIAL_ECHOPGM(MSG_MY_VERSION); //  Anycubic Chiron
   SERIAL_CHAR(' ');
   SERIAL_ECHOLNPGM(SHORT_BUILD_VERSION);
   SERIAL_EOL();
@@ -15443,7 +15522,7 @@ void setup() {
     #endif
   #endif
 
-  #if ENABLED(POWER_LOSS_RECOVERY)
+  #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
     check_print_job_recovery();
   #endif
 
@@ -15458,7 +15537,7 @@ void setup() {
     enable_D();
   #endif
 
-  #if ENABLED(SDSUPPORT) && !(ENABLED(ULTRA_LCD) && PIN_EXISTS(SD_DETECT))
+  #if ENABLED(SDSUPPORT) && (DISABLED(ULTRA_LCD) || DISABLED(CHIRON_LCD))
     card.beginautostart();
   #endif
 }
@@ -15494,7 +15573,7 @@ void loop() {
         for (uint8_t i = 0; i < FAN_COUNT; i++) fanSpeeds[i] = 0;
       #endif
       wait_for_heatup = false;
-      #if ENABLED(POWER_LOSS_RECOVERY)
+      #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
         card.removeJobRecoveryFile();
       #endif
     }
@@ -15536,7 +15615,7 @@ void loop() {
       }
       else {
         process_next_command();
-        #if ENABLED(POWER_LOSS_RECOVERY)
+        #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
           if (card.cardOK && card.sdprinting) save_job_recovery_info();
         #endif
       }

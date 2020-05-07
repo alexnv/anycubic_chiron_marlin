@@ -26,12 +26,13 @@
 
 #include "cardreader.h"
 
-#include "ultralcd.h"
+#include "chiron_lcd.h"
 #include "stepper.h"
 #include "language.h"
 #include "printcounter.h"
 
-#if ENABLED(POWER_LOSS_RECOVERY)
+
+#if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
   #include "power_loss_recovery.h"
 #endif
 
@@ -123,17 +124,20 @@ void CardReader::lsDive(const char *prepend, SdFile parent, const char * const m
       // close() is done automatically by destructor of SdFile
     }
     else {
-      uint8_t pn0 = p.name[0];
-      if (pn0 == DIR_NAME_FREE) break;
-      if (pn0 == DIR_NAME_DELETED || pn0 == '.') continue;
-      if (longFilename[0] == '.') continue;
+      if (p.name[0] == DIR_NAME_FREE) break;
+      if (p.name[0] == DIR_NAME_DELETED || p.name[0] == '.' || p.name[0] == '_') continue;
+      if (longFilename[0] == '.' && (longFilename[0] == '.' || longFilename[0] == '_')) continue;
+      if ( p.name[0] == '.') {
+        if ( p.name[1] != '.') continue;
+      }
 
       if (!DIR_IS_FILE_OR_SUBDIR(&p) || (p.attributes & DIR_ATT_HIDDEN)) continue;
 
       filenameIsDir = DIR_IS_SUBDIR(&p);
 
-      if (!filenameIsDir && (p.name[8] != 'G' || p.name[9] == '~')) continue;
-
+      //if (!filenameIsDir && (p.name[8] != 'G' || p.name[9] == '~')) continue;
+      if (!filenameIsDir && (p.name[9] == '~')) continue;
+	  
       switch (lsAction) {  // 1 based file count
         case LS_Count:
           nrFiles++;
@@ -500,7 +504,7 @@ void CardReader::checkautostart() {
   if (!cardOK) initsd();
 
   if (cardOK
-    #if ENABLED(POWER_LOSS_RECOVERY)
+    #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
       && !jobRecoverFileExists() // Don't run auto#.g when a resume file exists
     #endif
   ) {
@@ -898,7 +902,7 @@ void CardReader::printingHasFinished() {
   else {
     sdprinting = false;
 
-    #if ENABLED(POWER_LOSS_RECOVERY)
+	#if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
       removeJobRecoveryFile();
     #endif
 
@@ -933,7 +937,7 @@ void CardReader::printingHasFinished() {
   }
 #endif // AUTO_REPORT_SD_STATUS
 
-#if ENABLED(POWER_LOSS_RECOVERY)
+#if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
 
   char job_recovery_file_name[4] = "bin";
 

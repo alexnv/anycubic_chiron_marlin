@@ -87,7 +87,7 @@ public:
     #endif
   #endif
 
-  #if ENABLED(POWER_LOSS_RECOVERY)
+  #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
     void openJobRecoveryFile(const bool read);
     void closeJobRecoveryFile();
     bool jobRecoverFileExists();
@@ -178,7 +178,7 @@ private:
   SdVolume volume;
   SdFile file;
 
-  #if ENABLED(POWER_LOSS_RECOVERY)
+  #if ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
     SdFile jobRecoveryFile;
   #endif
 

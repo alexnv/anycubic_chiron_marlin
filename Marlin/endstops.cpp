@@ -29,7 +29,7 @@
 #include "endstops.h"
 #include "temperature.h"
 #include "stepper.h"
-#include "ultralcd.h"
+#include "chiron_lcd.h"
 
 #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
   #include "endstop_interrupts.h"

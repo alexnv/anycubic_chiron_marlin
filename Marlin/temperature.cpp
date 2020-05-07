@@ -27,7 +27,7 @@
 #include "Marlin.h"
 #include "temperature.h"
 #include "thermistortables.h"
-#include "ultralcd.h"
+#include "chiron_lcd.h"
 #include "planner.h"
 #include "language.h"
 #include "printcounter.h"
@@ -787,8 +787,18 @@ void Temperature::manage_heater() {
     #if WATCH_HOTENDS
       // Make sure temperature is increasing
       if (watch_heater_next_ms[e] && ELAPSED(ms, watch_heater_next_ms[e])) { // Time to check this extruder?
-        if (degHotend(e) < watch_target_temp[e])                             // Failed to increase enough?
+        static unsigned char temp=0;  // Anycubic Chiron
+        if (degHotend(e) < watch_target_temp[e]) {                            // Failed to increase enough?
+          // Stop!
+		  #if ENABLED(CHIRON_LCD)
+          temp++; // Anycubic Chiron
+		  if(temp%10==0) {
+			  temp=0;
+			  write_to_lcd_P(PSTR("J10\r\n"));  // Anycubic Chiron | SEND MESSAGE TO TFT
+		  }
+		  #endif
           _temp_error(e, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, e));
+        }
         else                                                                 // Start again if the target is still far off
           start_watching_heater(e);
       }
@@ -1474,6 +1484,9 @@ void Temperature::init() {
         else if (PENDING(millis(), *timer)) break;
         *state = TRRunaway;
       case TRRunaway:
+		#if ENABLED(CHIRON_LCD)
+			write_to_lcd_P(PSTR("J10\r\n")); 	// Anycubic Chiron | SEND MESSAGE TO TFT 
+		#endif 
         _temp_error(heater_id, PSTR(MSG_T_THERMAL_RUNAWAY), TEMP_ERR_PSTR(MSG_THERMAL_RUNAWAY, heater_id));
     }
   }

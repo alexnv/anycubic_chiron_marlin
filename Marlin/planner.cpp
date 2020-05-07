@@ -65,7 +65,7 @@
 #include "planner.h"
 #include "stepper.h"
 #include "temperature.h"
-#include "ultralcd.h"
+#include "chiron_lcd.h"
 #include "language.h"
 #include "parser.h"
 
@@ -1673,6 +1673,14 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
           de = 0; // no difference
           SERIAL_ECHO_START();
           SERIAL_ECHOLNPGM(MSG_ERR_COLD_EXTRUDE_STOP);
+          /*
+           * ##############################
+           *      Anycubic Chiron
+           * #############################
+           */     
+          #ifdef CHIRON_POWER_LOSS_RECOVERY
+			write_to_lcd_P(PSTR("J13\r\n")); //J13 OK MSG_ERR_COLD_EXTRUDE_STOP
+		  #endif          
         }
       #endif // PREVENT_COLD_EXTRUSION
       #if ENABLED(PREVENT_LENGTHY_EXTRUDE)

@@ -32,7 +32,7 @@
   #include "planner.h"
   #include "stepper.h"
   #include "temperature.h"
-  #include "ultralcd.h"
+  #include "chiron_lcd.h"
   #include "parser.h"
   #include "serial.h"
   #include "bitmap_flags.h"

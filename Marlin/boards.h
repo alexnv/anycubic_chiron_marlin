@@ -79,6 +79,7 @@
 #define BOARD_MAKEBOARD_MINI    431   // MakeBoard Mini v2.1.2 is a control board sold by MicroMake
 #define BOARD_TRIGORILLA_13     343   // TriGorilla Anycubic version 1.3 based on RAMPS EFB
 #define BOARD_TRIGORILLA_14     443   // TriGorilla Anycubic version 1.4 based on RAMPS EFB
+#define BOARD_TRIGORILLA_CHIRON 444   // TriGorilla Anycubic version 1.4 based on RAMPS EFB for Chiron
 #define BOARD_RAMPS_ENDER_4     243   // Creality: Ender-4, CR-8
 
 //

@@ -44,11 +44,18 @@
 #include "utility.h"
 #include "serial.h"
 
+#if ENABLED(CHIRON_LCD)
+	extern char errorFlag;
+#endif
+
 void idle(
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
     bool no_stepper_sleep = false  // pass true to keep steppers from disabling on timeout
   #endif
 );
+
+extern millis_t previous_move_ms;
+inline void refresh_cmd_timeout() { previous_move_ms = millis(); }
 
 void manage_inactivity(const bool ignore_stepper_queue=false);
 
@@ -236,11 +243,11 @@ bool enqueue_and_echo_command(const char* cmd);           // Add a single comman
 void enqueue_and_echo_commands_P(const char * const cmd); // Set one or more commands to be prioritized over the next Serial/SD command.
 void clear_command_queue();
 
-#if ENABLED(M100_FREE_MEMORY_WATCHER) || ENABLED(POWER_LOSS_RECOVERY)
+#if ENABLED(M100_FREE_MEMORY_WATCHER) || ENABLED(POWER_LOSS_RECOVERY) || ENABLED(CHIRON_POWER_LOSS_RECOVERY)
   extern char command_queue[BUFSIZE][MAX_CMD_SIZE];
 #endif
 
-#define HAS_LCD_QUEUE_NOW (ENABLED(MALYAN_LCD) || (ENABLED(ULTIPANEL) && (ENABLED(AUTO_BED_LEVELING_UBL) || ENABLED(PID_AUTOTUNE_MENU) || ENABLED(ADVANCED_PAUSE_FEATURE))))
+#define HAS_LCD_QUEUE_NOW (ENABLED(MALYAN_LCD) || ENABLED(CHIRON_LCD) || (ENABLED(ULTIPANEL) && (ENABLED(AUTO_BED_LEVELING_UBL) || ENABLED(PID_AUTOTUNE_MENU) || ENABLED(ADVANCED_PAUSE_FEATURE))))
 #define HAS_QUEUE_NOW (ENABLED(SDSUPPORT) || HAS_LCD_QUEUE_NOW)
 #if HAS_QUEUE_NOW
   // Return only when commands are actually enqueued
@@ -453,6 +460,7 @@ void report_current_position();
   extern float bilinear_grid_factor[2],
                z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
   float bilinear_z_offset(const float raw[XYZ]);
+  void refresh_bed_level();
 #endif
 
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR) || ENABLED(MESH_BED_LEVELING)
